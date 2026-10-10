@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>UPI 提链控制台</title>
+  <style>
+    :root { color-scheme: light; --ink:#172033; --muted:#67738a; --line:#e5e9f1; --brand:#5b5feF; --bg:#f4f6fb; --ok:#16865c; --bad:#c0394b; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    .wrap { width:min(980px,calc(100% - 32px)); margin:38px auto; }
+    header { margin:0 0 22px; }
+    h1 { margin:0; font-size:27px; letter-spacing:-.03em; }
+    header p { color:var(--muted); margin:7px 0 0; }
+    .layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; align-items:start; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:22px; box-shadow:0 8px 28px #26345a0a; }
+    .card h2 { margin:0 0 17px; font-size:17px; }
+    label { display:block; font-weight:650; margin:0 0 7px; }
+    input[type=password], textarea { display:block; width:100%; border:1px solid #d8deea; background:#fff; color:var(--ink); border-radius:10px; padding:11px 12px; outline:none; font:14px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    input:focus, textarea:focus { border-color:var(--brand); box-shadow:0 0 0 3px #5b5fef18; }
+    textarea { min-height:180px; resize:vertical; }
+    .field { margin-bottom:17px; }
+    .hint { color:var(--muted); font-size:12px; margin:6px 0 0; }
+    .check { display:flex; gap:9px; align-items:flex-start; color:#46516a; font-size:13px; margin:2px 0 18px; }
+    .check input { margin-top:4px; accent-color:var(--brand); }
+    .actions { display:flex; gap:10px; }
+    button { border:0; border-radius:10px; padding:10px 16px; background:var(--brand); color:#fff; font:650 14px system-ui,sans-serif; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    button.secondary { background:#edf0f7; color:#303a51; }
+    .statusline { display:flex; align-items:center; gap:9px; margin:-2px 0 15px; }
+    .dot { width:9px; height:9px; background:#9aa4b6; border-radius:50%; }
+    .dot.running,.dot.starting,.dot.stopping { background:#e99a22; box-shadow:0 0 0 4px #e99a2218; }
+    .dot.succeeded { background:var(--ok); box-shadow:0 0 0 4px #16865c18; }
+    .dot.failed,.dot.stopped { background:var(--bad); }
+    #statusText { font-weight:700; }
+    .meta { margin-left:auto; color:var(--muted); font-size:12px; }
+    .links { display:grid; gap:8px; margin:0 0 12px; }
+    .links a { overflow-wrap:anywhere; color:#3e48c6; font-size:13px; }
+    .logbox { min-height:265px; max-height:460px; overflow:auto; background:#101827; color:#d9e1ee; padding:14px; border-radius:11px; font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .notice { grid-column:1/-1; color:#67738a; font-size:12px; padding:0 3px; }
+    .error { color:var(--bad); min-height:20px; margin:-7px 0 10px; font-size:13px; }
+    @media (max-width:720px) { .wrap { margin:22px auto; } .layout { grid-template-columns:1fr; } .notice { grid-column:auto; } .card { padding:18px; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>UPI 提链控制台</h1>
+      <p>Python 本地后端 · 单任务运行 · 默认 UPI 国家/账单地区为 IN</p>
+    </header>
+    <div class="layout">
+      <section class="card">
+        <h2>新建任务</h2>
+        <form id="runForm" autocomplete="off">
+          <div class="field">
+            <label for="token">账号 Access Token</label>
+            <input id="token" type="password" autocomplete="new-password" spellcheck="false" required maxlength="64000" placeholder="粘贴当前账号 Token">
+            <p class="hint">仅用于当前本地任务，不写入浏览器缓存或项目文件。</p>
+          </div>
+          <div class="field">
+            <label for="proxies">自定义代理池</label>
+            <textarea id="proxies" spellcheck="false" placeholder="每行一条，例如：&#10;http://user:pass@host:port&#10;host:port:user:pass" required></textarea>
+            <p class="hint">运行时写入临时文件，任务结束后自动删除。格式按代理供应商要求填写。</p>
+          </div>
+          <label class="check"><input id="requireZero" type="checkbox" checked><span>仅交付 0 元结果（默认开启；未命中 0 元条件时任务会失败）</span></label>
+          <div id="formError" class="error" role="alert"></div>
+          <div class="actions">
+            <button id="startBtn" type="submit">开始提链</button>
+            <button id="stopBtn" class="secondary" type="button" hidden>停止任务</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card" aria-live="polite">
+        <h2>运行状态</h2>
+        <div class="statusline"><span id="statusDot" class="dot"></span><span id="statusText">空闲</span><span id="taskMeta" class="meta"></span></div>
+        <div id="links" class="links"></div>
+        <div id="logs" class="logbox">暂无日志</div>
+      </section>
+      <p class="notice">控制台仅绑定本机回环地址。请勿在不可信电脑上粘贴账号 Token 或代理凭据；运行日志会在浏览器中显示，凭据会做二次脱敏。</p>
+    </div>
+  </main>
+  <script>
+    const csrfToken = "__CSRF_TOKEN__";
+    const $ = (selector) => document.querySelector(selector);
+    const active = new Set(["starting", "running", "stopping"]);
+    const labels = { idle: "空闲", starting: "启动中", running: "运行中", stopping: "正在停止", succeeded: "成功", failed: "失败", stopped: "已停止" };
+    let previousLogCount = -1;
+
+    async function api(path, payload) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function render(state) {
+      const status = state.status || "idle";
+      $("#statusText").textContent = labels[status] || status;
+      $("#statusDot").className = `dot ${status}`;
+      $("#taskMeta").textContent = state.id ? `任务 ${state.id}${state.exit_code === null ? "" : ` · 退出码 ${state.exit_code}`}` : "";
+      $("#startBtn").disabled = active.has(status);
+      $("#stopBtn").hidden = !active.has(status);
+      const logText = (state.logs || []).join("\n") || "暂无日志";
+      if ((state.logs || []).length !== previousLogCount || $("#logs").textContent !== logText) {
+        const box = $("#logs");
+        const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 48;
+        box.textContent = logText;
+        if (nearBottom) box.scrollTop = box.scrollHeight;
+        previousLogCount = (state.logs || []).length;
+      }
+      const links = $("#links");
+      links.replaceChildren();
+      for (const url of state.links || []) {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        anchor.textContent = url;
+        links.append(anchor);
+      }
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (response.ok) render(await response.json());
+      } catch (_) { /* server may be stopping */ }
+    }
+
+    $("#runForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      $("#formError").textContent = "";
+      const token = $("#token").value.trim();
+      const proxies = $("#proxies").value;
+      $("#startBtn").disabled = true;
+      try {
+        await api("/api/start", { token, proxies, require_zero: $("#requireZero").checked });
+        $("#token").value = "";
+        $("#proxies").value = "";
+        await refresh();
+      } catch (error) {
+        $("#formError").textContent = error.message;
+        $("#startBtn").disabled = false;
+      }
+    });
+
+    $("#stopBtn").addEventListener("click", async () => {
+      try { await api("/api/stop", {}); await refresh(); }
+      catch (error) { $("#formError").textContent = error.message; }
+    });
+
+    refresh();
+    setInterval(refresh, 1200);
+  </script>
+</body>
+</html>

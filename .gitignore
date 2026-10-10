@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+data/*
+!data/.gitkeep
+standalone_core/fingerprint_profiles.json
+standalone_core/fingerprint_profiles.json.bak
+standalone_core/alt_extractors/upi/logs/
+standalone_core/alt_extractors/upi/dumps/
+standalone_core/alt_extractors/upi/proxy_seeds.txt
+standalone_core/alt_extractors/upi/token.txt
+standalone_core/alt_extractors/upi/proxy_state.json
+standalone_core/alt_extractors/upi/billing_assignments.json

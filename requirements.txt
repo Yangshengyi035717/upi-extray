@@ -1,0 +1,5 @@
+curl_cffi==0.15.0
+requests>=2.32,<3
+qrcode[pil]>=7.4.2
+PySocks>=1.7.1,<2
+playwright>=1.45,<2
