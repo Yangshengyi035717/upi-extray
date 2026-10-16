@@ -53,6 +53,8 @@ UPI_ORIGINAL_PRICE_ZERO_FALLBACK=0  # 原价链被上游压成 0 元时是否降
   UPI_ZERO_CACHE_SCHEDULING=0 # 显式设为 1 才按 0 元观察结果筛选/优先调度
   UPI_BROWSER_MODE=headless  # UPI 严格使用真实 Playwright 无头 Chromium，不回退 HTTP 模拟
   UPI_BROWSER_EXECUTABLE_PATH= # 可选：指定 Chrome/Chromium 可执行文件
+  UPI_DIVERSE_FINGERPRINTS=1  # 新账号 sticky 指纹默认抽取 Chrome/Edge/Firefox + Windows/macOS
+  UPI_FORCE_CHROME_PROFILE=0  # 兼容旧版：显式设为 1 才强制覆盖为 Chrome/Windows/hi-IN
   UPI_OFFICIAL_CHECKOUT_FALLBACK=1
   UPI_OFFICIAL_CHECKOUT_TIMEOUT=45
   PP_PROMO_MODE=campaign      # 默认直接走 promo_campaign，避免 coupon 再 fallback 多耗时
@@ -563,12 +565,22 @@ def resolve_upi_fingerprint(
         runtime_device_id = runtime_device_id or str(uuid.uuid4())
         adapted = extractor_profile(profile_obj, runtime_device_id)
     else:
-        profile_obj, stored_device_id = get_account_fingerprint(resolved_account, region="IN")
+        profile_obj, stored_device_id = get_account_fingerprint(
+            resolved_account,
+            region="IN",
+            diversify=env_bool("UPI_DIVERSE_FINGERPRINTS", True),
+            include_mobile=env_bool("UPI_MOBILE_FINGERPRINTS", False),
+        )
         runtime_device_id = runtime_device_id or stored_device_id
         adapted = extractor_profile(profile_obj, runtime_device_id)
     runtime_device_id = runtime_device_id or str(uuid.uuid4())
     adapted = {str(key): str(value) for key, value in adapted.items() if value not in (None, "")}
-    if not (configured_profile and _fingerprint_value(configured_profile, "ua", "user_agent")):
+    # 保留 fingerprint_store/register_profile 生成的浏览器、平台、UA、语言和
+    # TLS 组合。只有旧版兼容开关打开时，才覆盖为固定 Chrome/Windows。
+    if (
+        not (configured_profile and _fingerprint_value(configured_profile, "ua", "user_agent"))
+        and env_bool("UPI_FORCE_CHROME_PROFILE", False)
+    ):
         adapted = _upi_default_chrome_profile(adapted)
     adapted.update(
         {

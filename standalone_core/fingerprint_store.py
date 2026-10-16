@@ -318,7 +318,12 @@ def zero_ineligible_until(account_id: str) -> float:
 
 
 def _ensure_account_fingerprint(
-    store: dict[str, Any], account_id: str, region: str
+    store: dict[str, Any],
+    account_id: str,
+    region: str,
+    *,
+    diversify: bool = False,
+    include_mobile: bool = False,
 ) -> tuple[Profile, str, bool]:
     raw_account_id = _text(account_id)
     if not raw_account_id:
@@ -336,7 +341,11 @@ def _ensure_account_fingerprint(
     requested_region = _text(region).upper() or "US"
     dirty = False
     if profile is None:
-        profile = random_profile(region=requested_region)
+        profile = random_profile(
+            region=requested_region,
+            diversify=diversify,
+            include_mobile=include_mobile,
+        )
         dirty = True
     elif profile.browser in {"chrome", "edge"} and profile.browser_major == 144:
         # The bundled curl transport has no chrome144 preset. Replace the old
@@ -400,6 +409,9 @@ def _ensure_account_fingerprint(
 
 def get_account_fingerprints(
     items: list[dict[str, Any]],
+    *,
+    diversify: bool = False,
+    include_mobile: bool = False,
 ) -> list[tuple[Profile, str]]:
     """Allocate up to 500 sticky profiles with one store load and one atomic save."""
     if not isinstance(items, list) or not items:
@@ -415,6 +427,8 @@ def get_account_fingerprints(
                 store,
                 _text(item.get("account_id")),
                 _text(item.get("region") or "US"),
+                diversify=diversify,
+                include_mobile=include_mobile,
             )
             results.append((profile, device_id))
             dirty = dirty or changed
@@ -428,11 +442,15 @@ def get_account_fingerprint(
     *,
     region: str = "US",
     proxy: str = "",
+    diversify: bool = False,
+    include_mobile: bool = False,
 ) -> tuple[Profile, str]:
     """Return one persistent registration Profile and device id per account."""
     del proxy  # Region is fixed by the bind/payment role, never inferred here.
     return get_account_fingerprints(
-        [{"account_id": account_id, "region": region}]
+        [{"account_id": account_id, "region": region}],
+        diversify=diversify,
+        include_mobile=include_mobile,
     )[0]
 
 

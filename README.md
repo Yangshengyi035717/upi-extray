@@ -23,7 +23,11 @@ python app.py
 3. 默认勾选“仅交付 0 元结果”；关闭后由核心按原价流程处理。
 4. 开始后可查看状态、日志和捕获到的 Stripe UPI Instructions 链接。
 
-控制台每次只运行一个任务。Token 和代理不写入浏览器存储或持久化任务记录；代理临时文件在任务结束后删除，运行状态与日志放在 `data/`。日志会对 Token 和常见代理认证信息做二次脱敏，但仍应按敏感文件保护 `data/`。
+控制台每次只运行一个任务。Token 和代理不写入浏览器存储或持久化任务记录；代理临时文件在任务结束后删除，运行状态与指纹库放在 `data/`。日志会对 Token 和常见代理认证信息做二次脱敏，但仍应按敏感文件保护 `data/`。
+
+默认会保留指纹库中的浏览器、平台、UA、语言、时区、设备参数和 TLS 组合。只有设置 `UPI_FORCE_CHROME_PROFILE=1` 时，才启用旧版的固定 Chrome/Windows/hi-IN 兼容模式。
+
+新账号默认启用桌面指纹多样化：Chrome、Edge、Firefox 与 Windows、macOS 会按现有指纹池规则抽取；移动端默认关闭，可通过 `UPI_MOBILE_FINGERPRINTS=1` 开启。
 
 ## 目录
 
@@ -31,7 +35,7 @@ python app.py
 - `web/index.html`：轻量 HTML/CSS/JS 页面。
 - `standalone_core/alt_extractors/upi/`：UPI 核心、出口评分。
 - `standalone_core/`：核心运行所需的传输、指纹、会话与 Sentinel 支持模块。
-- `data/`：本地运行状态、日志、指纹状态与临时数据（已加入 `.gitignore`）。
+- `data/`：本地运行状态、日志、指纹状态与临时数据；`fingerprint_profiles.json` 为随项目提供的指纹库。
 
 ## 校验
 

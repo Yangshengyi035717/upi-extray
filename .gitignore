@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 data/*
 !data/.gitkeep
+!data/fingerprint_profiles.json
 standalone_core/fingerprint_profiles.json
 standalone_core/fingerprint_profiles.json.bak
 standalone_core/alt_extractors/upi/logs/
